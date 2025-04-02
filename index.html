@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seviyeli İngilizce Kelime Öğrenme Oyunu (5000 Kelime)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .card { min-height: 200px; display: flex; flex-direction: column; justify-content: space-around; align-items: center; }
+        .visual-aid-container { min-height: 60px; margin-bottom: 1rem; display: flex; justify-content: center; align-items: center; }
+        .visual-aid-container img { max-height: 50px; max-width: 100%; }
+        .button-container button, #next-level-btn { transition: transform 0.1s ease-in-out; }
+        .button-container button:active, #next-level-btn:active { transform: scale(0.95); }
+        #learned-words-modal { transition: opacity 0.3s ease-in-out; }
+        .modal-content { max-height: 70vh; overflow-y: auto; }
+        .modal-content::-webkit-scrollbar { display: none; }
+        .modal-content { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gradient-to-br from-blue-100 to-purple-100 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="bg-white rounded-lg shadow-xl p-6 md:p-8 w-full max-w-lg text-center mb-4">
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-800 mb-4">Seviyeli Kelime Oyunu (5000)</h1>
+
+        <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+            <div class="flex items-center gap-2">
+                <label for="level-select" class="font-semibold text-gray-700">Seviye:</label>
+                <select id="level-select" class="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                    </select>
+            </div>
+            <button id="show-learned-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md text-sm">
+                Öğrendiklerimi Göster
+            </button>
+        </div>
+
+        <div id="word-display" class="card bg-gray-50 rounded-lg p-4 mb-6 shadow-inner">
+             <div id="visual-aid" class="visual-aid-container">
+                </div>
+            <p id="word" class="text-3xl md:text-4xl font-bold text-indigo-700 mb-2">-</p>
+            <p id="meaning" class="text-lg md:text-xl text-gray-600 font-medium">-</p>
+        </div>
+
+        <div id="button-container" class="button-container flex justify-around space-x-4 mb-6">
+            <button id="unknown-btn" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md w-1/2">
+                Bilmiyorum
+            </button>
+            <button id="known-btn" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md w-1/2">
+                Biliyorum
+            </button>
+        </div>
+
+        <div id="progress-area" class="text-gray-600">
+            <p id="progress-text" class="mb-2">Kelime: 0 / 0</p>
+            <p id="message" class="font-medium text-blue-700 h-6 mb-2"></p>
+            <button id="next-level-btn" class="hidden bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-5 rounded-lg shadow-md mt-2">
+                Sonraki Seviye <span aria-hidden="true">&rarr;</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="learned-words-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md relative modal-content">
+            <button id="close-modal-btn" class="absolute top-2 right-3 text-gray-500 hover:text-gray-800 text-2xl font-bold">&times;</button>
+            <h2 class="text-xl font-bold text-gray-800 mb-4 text-center">Öğrenilen Kelimeler</h2>
+            <ul id="learned-list" class="list-disc list-inside space-y-1 text-left text-gray-700">
+                <li class="italic text-gray-500">Henüz öğrenilen kelime yok.</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // --- Tam Kelime Listesi (ÖRNEK VERİ - 5000 Kelime Yapısı) ---
+        // !!! UYARI: Aşağısı sadece bir örnektir. 5000 kelimenin tamamını buraya eklemek
+        // !!! performansı ciddi şekilde düşürebilir. Gerçek uygulamada veriyi
+        // !!! ayrı bir JSON dosyasından veya API'den yüklemeyi düşünün.
+        // !!! Buraya kendi 5000 kelimelik listenizi eklemelisiniz.
+        const fullWordList = [
+            // --- Seviye 1 (İlk 10 Kelime) ---
+            { en: "the", tr: "belirli tanım edatı", level: 1, icon: null },
+            { en: "be", tr: "olmak", level: 1, icon: 'star' },
+            { en: "to", tr: "-e, -a (yönelme)", level: 1, icon: 'move-right' },
+            { en: "of", tr: "-in, -ın (aitlik)", level: 1, icon: null },
+            { en: "and", tr: "ve", level: 1, icon: 'plus' },
+            { en: "a", tr: "bir (belirsiz tanım edatı)", level: 1, icon: null },
+            { en: "in", tr: "içinde", level: 1, icon: 'box' },
+            { en: "that", tr: "şu, o (işaret); ki (bağlaç)", level: 1, icon: 'pointer' }, // Örnek: Anlam genişletildi
+            { en: "have", tr: "sahip olmak", level: 1, icon: 'gem' },
+            { en: "I", tr: "ben", level: 1, icon: 'user' },
+
+            // --- Seviye 2 (11-20. Kelimeler) ---
+            { en: "it", tr: "o (cansız/hayvan)", level: 2, icon: null },
+            { en: "for", tr: "için", level: 2, icon: 'gift' }, // Örnek ikon
+            { en: "not", tr: "değil (olumsuzluk)", level: 2, icon: 'x-circle' },
+            { en: "on", tr: "üzerinde", level: 2, icon: 'map-pin' },
+            { en: "with", tr: "ile", level: 2, icon: 'link' },
+            { en: "he", tr: "o (erkek)", level: 2, icon: 'user' },
+            { en: "as", tr: "gibi, olarak", level: 2, icon: null },
+            { en: "you", tr: "sen, siz", level: 2, icon: 'users' }, // Çoğul ikon
+            { en: "do", tr: "yapmak", level: 2, icon: 'check-circle' },
+            { en: "at", tr: "-de, -da (yer)", level: 2, icon: 'map-pin' },
+
+            // --- Seviye 3 (21-30. Kelimeler) ---
+            { en: "this", tr: "bu", level: 3, icon: 'pointer' },
+            { en: "but", tr: "ama, fakat", level: 3, icon: null },
+            { en: "his", tr: "onun (erkek, aitlik)", level: 3, icon: null },
+            { en: "by", tr: "tarafından, ile, yanında", level: 3, icon: 'navigation' }, // Örnek ikon
+            { en: "from", tr: "-den, -dan (kaynak)", level: 3, icon: 'arrow-left-from-line' },
+            { en: "they", tr: "onlar", level: 3, icon: 'users' },
+            { en: "we", tr: "biz", level: 3, icon: 'users' },
+            { en: "say", tr: "söylemek", level: 3, icon: 'message-square' },
+            { en: "her", tr: "onun (kadın, aitlik); ona (kadın, nesne)", level: 3, icon: null },
+            { en: "she", tr: "o (kadın)", level: 3, icon: 'user' },
+
+            // ... SEVİYE 4 ... (10 kelime)
+            // ... SEVİYE 5 ... (10 kelime)
+            // ...
+            // ... SEVİYE 500 ... (4991-5000. Kelimeler)
+            // { en: "kelime4991", tr: "çeviri4991", level: 500, icon: 'ikon_adı_veya_null' },
+            // ...
+            // { en: "kelime5000", tr: "çeviri5000", level: 500, icon: 'ikon_adı_veya_null' },
+        ];
+
+        // --- Değişkenler ---
+        let currentLevelWords = [];
+        let unknownWordsInLevel = [];
+        let learnedWords = [];
+        let currentIndex = 0;
+        let currentLevel = 1;
+        let isReviewPhase = false;
+        // Toplam seviye sayısını dinamik olarak hesapla (Eğer liste tam değilse diye)
+        const totalLevels = fullWordList.length > 0 ? Math.max(...fullWordList.map(w => w.level)) : 0; // 500 olmalı
+
+        // --- DOM Elementleri ---
+        const wordEl = document.getElementById('word');
+        const meaningEl = document.getElementById('meaning');
+        const visualAidEl = document.getElementById('visual-aid');
+        const unknownBtn = document.getElementById('unknown-btn');
+        const knownBtn = document.getElementById('known-btn');
+        const progressTextEl = document.getElementById('progress-text');
+        const messageEl = document.getElementById('message');
+        const wordDisplayEl = document.getElementById('word-display');
+        const buttonContainerEl = document.getElementById('button-container');
+        const levelSelectEl = document.getElementById('level-select');
+        const showLearnedBtn = document.getElementById('show-learned-btn');
+        const learnedWordsModal = document.getElementById('learned-words-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const learnedListEl = document.getElementById('learned-list');
+        const nextLevelBtn = document.getElementById('next-level-btn');
+
+        // --- Fonksiyonlar ---
+
+        // (loadLearnedWords, saveLearnedWords, loadLastLevel, saveLastLevel fonksiyonları aynı kalır)
+        function loadLearnedWords() {
+            const storedWords = localStorage.getItem('learnedWords');
+            learnedWords = storedWords ? JSON.parse(storedWords) : [];
+        }
+        function saveLearnedWords() {
+            localStorage.setItem('learnedWords', JSON.stringify(learnedWords));
+        }
+        function loadLastLevel() {
+            const storedLevel = localStorage.getItem('lastLevel');
+            // Kayıtlı seviyenin geçerli aralıkta olduğundan emin ol
+            let loadedLevel = storedLevel ? parseInt(storedLevel, 10) : 1;
+            currentLevel = (loadedLevel >= 1 && loadedLevel <= totalLevels) ? loadedLevel : 1;
+        }
+        function saveLastLevel() {
+            localStorage.setItem('lastLevel', currentLevel.toString());
+        }
+
+
+        function populateLevelSelector() {
+            levelSelectEl.innerHTML = '';
+            if (totalLevels === 0) return; // Kelime listesi boşsa bir şey yapma
+            for (let i = 1; i <= totalLevels; i++) {
+                const option = document.createElement('option');
+                option.value = i;
+                option.textContent = `Seviye ${i}`;
+                levelSelectEl.appendChild(option);
+            }
+            levelSelectEl.value = currentLevel;
+        }
+
+        function loadLevel(level) {
+            // Seviye numarasının geçerli aralıkta olduğundan emin ol
+             if (level < 1 || level > totalLevels) {
+                console.error("Geçersiz seviye numarası:", level);
+                messageEl.textContent = "Geçersiz seviye seçildi.";
+                return;
+            }
+
+            currentLevel = level;
+            saveLastLevel();
+            messageEl.textContent = `Seviye ${level} yükleniyor...`;
+            nextLevelBtn.classList.add('hidden');
+
+            const allWordsInLevel = fullWordList.filter(word => word.level === level);
+            // Her seviyede 10 kelime olmalı (ideal olarak)
+            const expectedWordsPerLevel = 10;
+
+            currentLevelWords = allWordsInLevel.filter(word => !learnedWords.includes(word.en));
+
+            // Kelime listesi boş veya eksikse kontrol et
+             if (allWordsInLevel.length === 0 && totalLevels > 0) {
+                 messageEl.textContent = `Seviye ${level} için kelime bulunamadı. Listeyi kontrol edin.`;
+                 progressTextEl.textContent = `Kelime: 0 / 0`;
+                 wordEl.textContent = '-';
+                 meaningEl.textContent = '-';
+                 visualAidEl.innerHTML = '';
+                 buttonContainerEl.style.display = 'none';
+                 return;
+            } else if (currentLevelWords.length === 0 && allWordsInLevel.length > 0) {
+                 messageEl.textContent = `Seviye ${level} zaten tamamlanmış!`;
+                 // Tamamlanmış seviyedeki toplam kelime sayısını göster (idealde 10)
+                 progressTextEl.textContent = `Kelime: ${allWordsInLevel.length} / ${allWordsInLevel.length}`;
+                 wordEl.textContent = '👍';
+                 meaningEl.textContent = 'Başka seviye seçin.';
+                 visualAidEl.innerHTML = '';
+                 buttonContainerEl.style.display = 'none';
+                 if (currentLevel < totalLevels) {
+                     nextLevelBtn.classList.remove('hidden');
+                 }
+                 return;
+            }
+
+
+            shuffleArray(currentLevelWords);
+            unknownWordsInLevel = [];
+            currentIndex = 0;
+            isReviewPhase = false;
+            wordDisplayEl.classList.remove('bg-green-100');
+            buttonContainerEl.style.display = 'flex';
+
+            showNextWord();
+        }
+
+        // (shuffleArray fonksiyonu aynı kalır)
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+
+        function showNextWord() {
+            if (currentIndex < currentLevelWords.length) {
+                const wordData = currentLevelWords[currentIndex];
+                wordEl.textContent = wordData.en;
+                meaningEl.textContent = wordData.tr;
+
+                visualAidEl.innerHTML = '';
+                if (wordData.icon) {
+                    // İkon URL'sini güvenli hale getir (potansiyel geçersiz karakterler için)
+                    const safeIconName = encodeURIComponent(wordData.icon);
+                    const iconUrl = `https://cdn.jsdelivr.net/npm/lucide-static@latest/icons/${safeIconName}.svg`;
+                     visualAidEl.innerHTML = `<img src="${iconUrl}" alt="${wordData.en} ikonu" class="h-10 w-10 text-indigo-600" onerror="this.style.display='none'; console.warn('İkon yüklenemedi:', '${iconUrl}')">`; // Hata durumunda konsola yazdır
+                } else {
+                    const placeholderText = wordData.en.replace(/\s+/g, '+');
+                    const placeholderUrl = `https://placehold.co/150x60/e0e7ff/4f46e5?text=${placeholderText}`;
+                    visualAidEl.innerHTML = `<img src="${placeholderUrl}" alt="${wordData.en} için görsel ipucu">`;
+                }
+
+                updateProgress();
+                messageEl.textContent = isReviewPhase ? 'Tekrar Turu' : '';
+            } else {
+                 handleEndOfRound();
+            }
+        }
+
+        // (handleEndOfRound, startReviewPhase fonksiyonları aynı kalır)
+         function handleEndOfRound() {
+             if (!isReviewPhase) {
+                if (unknownWordsInLevel.length > 0) {
+                    startReviewPhase();
+                } else {
+                    endLevel();
+                }
+            } else {
+                 if (unknownWordsInLevel.length > 0) {
+                     currentLevelWords = [...unknownWordsInLevel];
+                     unknownWordsInLevel = [];
+                     currentIndex = 0;
+                     shuffleArray(currentLevelWords);
+                     messageEl.textContent = `Hala bilinmeyen ${currentLevelWords.length} kelime var. Tekrar...`;
+                     showNextWord();
+                 } else {
+                     endLevel();
+                 }
+            }
+        }
+        function startReviewPhase() {
+            isReviewPhase = true;
+            currentLevelWords = [...unknownWordsInLevel];
+            unknownWordsInLevel = [];
+            currentIndex = 0;
+            shuffleArray(currentLevelWords);
+            messageEl.textContent = `Bilmediğiniz ${currentLevelWords.length} kelimeyi tekrar gözden geçirelim.`;
+            if (currentLevelWords.length > 0) {
+                showNextWord();
+            } else {
+                endLevel();
+            }
+        }
+
+
+        function endLevel() {
+            wordEl.textContent = '🎉';
+            meaningEl.textContent = `Seviye ${currentLevel} tamamlandı!`;
+            visualAidEl.innerHTML = '';
+            messageEl.textContent = 'Harika iş!';
+             // Seviyedeki toplam kelime sayısını göster (idealde 10)
+            const totalInLevel = fullWordList.filter(w => w.level === currentLevel).length;
+            progressTextEl.textContent = `Kelime: ${totalInLevel} / ${totalInLevel}`;
+            buttonContainerEl.style.display = 'none';
+            wordDisplayEl.classList.add('bg-green-100');
+
+            if (currentLevel < totalLevels) {
+                messageEl.textContent += ` Şimdi sonraki seviyeye geçebilirsiniz!`;
+                nextLevelBtn.classList.remove('hidden');
+            } else {
+                 messageEl.textContent += ` Tüm seviyeleri tamamladınız!`;
+            }
+        }
+
+        function updateProgress() {
+             const currentProgress = currentIndex + 1;
+             const totalInThisRound = currentLevelWords.length;
+             // İlerlemeyi gösterirken, o turdaki toplam kelime sayısını kullan
+            progressTextEl.textContent = `Kelime: ${currentProgress} / ${totalInThisRound} (${isReviewPhase ? 'Tekrar' : `Seviye ${currentLevel}`})`;
+        }
+
+        // (showLearnedWordsModal, hideLearnedWordsModal fonksiyonları aynı kalır)
+        function showLearnedWordsModal() {
+            learnedListEl.innerHTML = '';
+            if (learnedWords.length === 0) {
+                learnedListEl.innerHTML = '<li class="italic text-gray-500">Henüz öğrenilen kelime yok.</li>';
+            } else {
+                const groupedLearnedWords = {};
+                learnedWords.forEach(enWord => {
+                    const wordData = fullWordList.find(w => w.en === enWord);
+                    if (wordData) {
+                        if (!groupedLearnedWords[wordData.level]) {
+                            groupedLearnedWords[wordData.level] = [];
+                        }
+                        groupedLearnedWords[wordData.level].push(`${wordData.en} (${wordData.tr})`);
+                    } else {
+                         // Eğer kelime fullWordList'te bulunamazsa (liste eksikse diye)
+                         groupedLearnedWords[0] = groupedLearnedWords[0] || []; // Seviye 0 gibi grupla
+                         groupedLearnedWords[0].push(`${enWord} (Çeviri bulunamadı)`);
+                    }
+                });
+
+                const sortedLevels = Object.keys(groupedLearnedWords).map(Number).sort((a, b) => a - b);
+
+                sortedLevels.forEach(level => {
+                    const levelHeader = document.createElement('li');
+                    levelHeader.textContent = level === 0 ? `--- Diğer (Seviyesiz) ---` : `--- Seviye ${level} ---`;
+                    levelHeader.className = 'font-semibold mt-2 text-indigo-600';
+                    learnedListEl.appendChild(levelHeader);
+
+                    groupedLearnedWords[level].sort().forEach(wordText => {
+                        const li = document.createElement('li');
+                        li.textContent = wordText;
+                        learnedListEl.appendChild(li);
+                    });
+                });
+            }
+            learnedWordsModal.classList.remove('hidden');
+            setTimeout(() => learnedWordsModal.classList.remove('opacity-0'), 10);
+        }
+        function hideLearnedWordsModal() {
+            learnedWordsModal.classList.add('opacity-0');
+            setTimeout(() => learnedWordsModal.classList.add('hidden'), 300);
+        }
+
+
+        // --- Olay Dinleyicileri ---
+        // (unknownBtn, knownBtn, levelSelectEl, showLearnedBtn, closeModalBtn, learnedWordsModal, nextLevelBtn olay dinleyicileri aynı kalır)
+         unknownBtn.addEventListener('click', () => {
+            if (currentIndex < currentLevelWords.length) {
+                const wordData = currentLevelWords[currentIndex];
+                if (!unknownWordsInLevel.find(w => w.en === wordData.en)) { // Aynı kelimeyi tekrar ekleme
+                     unknownWordsInLevel.push(wordData);
+                }
+                currentIndex++;
+                showNextWord();
+            }
+        });
+        knownBtn.addEventListener('click', () => {
+            if (currentIndex < currentLevelWords.length) {
+                const wordData = currentLevelWords[currentIndex];
+                if (!learnedWords.includes(wordData.en)) {
+                    learnedWords.push(wordData.en);
+                    saveLearnedWords();
+                }
+                currentIndex++;
+                showNextWord();
+            }
+        });
+        levelSelectEl.addEventListener('change', (event) => {
+            const selectedLevel = parseInt(event.target.value, 10);
+            loadLevel(selectedLevel);
+        });
+        showLearnedBtn.addEventListener('click', showLearnedWordsModal);
+        closeModalBtn.addEventListener('click', hideLearnedWordsModal);
+        learnedWordsModal.addEventListener('click', (event) => {
+            if (event.target === learnedWordsModal) {
+                hideLearnedWordsModal();
+            }
+        });
+        nextLevelBtn.addEventListener('click', () => {
+            if (currentLevel < totalLevels) {
+                const nextLevel = currentLevel + 1;
+                levelSelectEl.value = nextLevel;
+                loadLevel(nextLevel);
+            }
+        });
+
+
+        // --- Başlangıç ---
+        function initializeApp() {
+            if (totalLevels === 0) {
+                 console.error("Kelime listesi boş veya hatalı. Lütfen 'fullWordList' dizisini kontrol edin.");
+                 messageEl.textContent = "Kelime listesi yüklenemedi!";
+                 // Gerekirse diğer UI elementlerini devre dışı bırak
+                 levelSelectEl.disabled = true;
+                 showLearnedBtn.disabled = true;
+                 return;
+            }
+            loadLearnedWords();
+            loadLastLevel(); // totalLevels hesaplandıktan sonra çağırılmalı
+            populateLevelSelector();
+            loadLevel(currentLevel);
+        }
+
+        // Uygulamayı başlat
+        initializeApp();
+
+    </script>
+
+</body>
+</html>
